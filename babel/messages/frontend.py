@@ -215,7 +215,11 @@ class extract_messages(Command):
          'strip the comment TAGs from the comments.'),
         ('input-dirs=', None,
          'directories that should be scanned for messages. Separate multiple '
-         'directories with commas(,)'),
+         'directories with commas (,)'),
+        # TODO setup.py also should support ignore-dir-prefixes:
+        # ('ignore-dir-prefixes=', None,
+        #   'directories that start with these will not be scanned. Separate '
+        #   'multiple directories with commas (,)')
     ]
     boolean_options = [
         'no-default-keywords', 'no-location', 'omit-header', 'no-wrap',
@@ -232,6 +236,7 @@ class extract_messages(Command):
         self.omit_header = False
         self.output_file = None
         self.input_dirs = None
+        # self.ignore_dir_prefixes = None
         self.width = None
         self.no_wrap = False
         self.sort_output = False
@@ -272,6 +277,9 @@ class extract_messages(Command):
                 for k in self.distribution.packages
             ]).keys()
 
+        # if self.ignore_dir_prefixes:
+        #     self.ignore_dir_prefixes = self.ignore_dir_prefixes.split(',')
+
         if self.add_comments:
             self._add_comments = self.add_comments.split(',')
 
@@ -300,6 +308,8 @@ class extract_messages(Command):
                                              keywords=self._keywords,
                                              comment_tags=self._add_comments,
                                              callback=callback,
+                                             # ignore_dir_prefixes=
+                                             #    self.ignore_dir_prefixes,
                                              strip_comment_tags=
                                                 self.strip_comments)
                 for filename, lineno, message, comments, context in extracted:
@@ -852,6 +862,10 @@ class CommandLineInterface(object):
         parser.add_option('--strip-comment-tags', '-s',
                           dest='strip_comment_tags', action='store_true',
                           help='Strip the comment tags from the comments.')
+        parser.add_option('--ignore-dir-prefix', dest='ignore_dir_prefixes',
+                          metavar='PREFIX', default=[], action='append',
+                          help='Bypass directories whose name start with '
+                               'PREFIX. You can specify this more than once.')
 
         parser.set_defaults(charset='utf-8', keywords=[],
                             no_default_keywords=False, no_location=False,
@@ -890,6 +904,9 @@ class CommandLineInterface(object):
             parser.error("'--sort-output' and '--sort-by-file' are mutually "
                          "exclusive")
 
+        if options.ignore_dir_prefixes == []:  # For backwards compatibility,
+            options.ignore_dir_prefixes = None  # use the default values
+
         catalog = Catalog(project=options.project,
                           version=options.version,
                           msgid_bugs_address=options.msgid_bugs_address,
@@ -915,7 +932,9 @@ class CommandLineInterface(object):
                                          keywords, options.comment_tags,
                                          callback=callback,
                                          strip_comment_tags=
-                                            options.strip_comment_tags)
+                                            options.strip_comment_tags,
+                                         ignore_dir_prefixes=
+                                            options.ignore_dir_prefixes)
             for filename, lineno, message, comments, context in extracted:
                 filepath = os.path.normpath(os.path.join(dirname, filename))
                 catalog.add(message, None, [(filepath, lineno)],
